@@ -1,0 +1,14 @@
+{
+  "module_name": "add_loyalty_points",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Adds points to customer account",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "points_to_add"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

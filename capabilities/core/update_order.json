@@ -1,0 +1,16 @@
+{
+  "module_name": "update_order",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Updates order properties",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "ORDER_UPDATED"
+  ],
+  "events_consumed": []
+}

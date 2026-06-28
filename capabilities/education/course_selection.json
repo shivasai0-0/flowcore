@@ -1,0 +1,16 @@
+{
+  "module_name": "course_selection",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Selects course from catalog",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "education.course_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

@@ -1,0 +1,14 @@
+{
+  "module_name": "check_out",
+  "version": "1.0",
+  "category": "Hotel",
+  "description": "Processes guest check-out and bills",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

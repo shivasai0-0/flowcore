@@ -1,0 +1,14 @@
+{
+  "module_name": "show_doctors",
+  "version": "1.0",
+  "category": "Clinic",
+  "description": "Displays clinic doctors catalog",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

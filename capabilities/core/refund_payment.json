@@ -1,0 +1,16 @@
+{
+  "module_name": "refund_payment",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Refunds payment transaction",
+  "inputs": [],
+  "outputs": {
+    "payment.status": "str"
+  },
+  "required_config": [
+    "payment_provider"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

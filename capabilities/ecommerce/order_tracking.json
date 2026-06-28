@@ -1,0 +1,14 @@
+{
+  "module_name": "order_tracking",
+  "version": "1.0",
+  "category": "Ecommerce",
+  "description": "Tracks order status",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

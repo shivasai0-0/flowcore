@@ -1,0 +1,16 @@
+{
+  "module_name": "collect_patient_info",
+  "version": "1.0",
+  "category": "Clinic",
+  "description": "Collects patient registration details",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "clinic.patient_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

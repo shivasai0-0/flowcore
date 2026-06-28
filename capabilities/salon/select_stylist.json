@@ -1,0 +1,16 @@
+{
+  "module_name": "select_stylist",
+  "version": "1.0",
+  "category": "Salon",
+  "description": "Selects stylist styling partner",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "salon.stylist_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

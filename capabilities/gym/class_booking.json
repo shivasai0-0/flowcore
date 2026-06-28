@@ -1,0 +1,16 @@
+{
+  "module_name": "class_booking",
+  "version": "1.0",
+  "category": "Gym",
+  "description": "Books gym class schedule",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "gym.class_booking_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

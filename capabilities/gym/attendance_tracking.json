@@ -1,0 +1,14 @@
+{
+  "module_name": "attendance_tracking",
+  "version": "1.0",
+  "category": "Gym",
+  "description": "Tracks gym member attendance",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

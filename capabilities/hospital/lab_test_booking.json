@@ -1,0 +1,16 @@
+{
+  "module_name": "lab_test_booking",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Books clinical laboratory test",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "hospital.lab_booking_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

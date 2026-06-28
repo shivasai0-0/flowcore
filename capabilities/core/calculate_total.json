@@ -1,0 +1,14 @@
+{
+  "module_name": "calculate_total",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Calculates total order pricing",
+  "inputs": [],
+  "outputs": {
+    "order.total": "float"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

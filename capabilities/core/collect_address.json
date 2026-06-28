@@ -1,0 +1,17 @@
+{
+  "module_name": "collect_address",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Collects customer delivery address",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "customer.address": "str",
+    "logistics.address": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

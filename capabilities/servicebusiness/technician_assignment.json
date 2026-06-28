@@ -1,0 +1,14 @@
+{
+  "module_name": "technician_assignment",
+  "version": "1.0",
+  "category": "ServiceBusiness",
+  "description": "Assigns field service technician",
+  "inputs": [],
+  "outputs": {
+    "service.technician_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

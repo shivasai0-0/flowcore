@@ -1,0 +1,16 @@
+{
+  "module_name": "record_event",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Records analytics event",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [
+    "event_name"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

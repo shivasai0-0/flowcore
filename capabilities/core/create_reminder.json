@@ -1,0 +1,15 @@
+{
+  "module_name": "create_reminder",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Creates customer session reminder",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "delay_seconds",
+    "message"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

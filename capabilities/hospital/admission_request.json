@@ -1,0 +1,16 @@
+{
+  "module_name": "admission_request",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Creates bed admission request",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "hospital.admission_status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

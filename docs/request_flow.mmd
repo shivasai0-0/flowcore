@@ -1,0 +1,68 @@
+sequenceDiagram
+    autonumber
+    actor Customer as Customer (WhatsApp)
+    participant n8n as n8n Webhook Workflow
+    participant API as FlowCore Sessions Router<br/>(sessions.py)
+    participant Traverser as GraphTraversalEngine<br/>(traversal.py)
+    participant FSM as FSMEngine<br/>(fsm/engine.py)
+    participant Module as Target Module Executor<br/>(implementations.py)
+    participant DB as SQLite Database<br/>(flowcore.db)
+
+    Customer->>n8n: Sends WhatsApp Message (e.g. "1 x 2")
+    n8n->>API: GET /sessions/active?business_id=...&customer_phone=...
+    API->>DB: Query most recent active session
+    DB-->>API: Returns session_id (e.g. "sess_2026...")
+    n8n->>API: POST /sessions/dispatch/{session_id} with user_input="1 x 2"
+    
+    API->>Traverser: dispatch_step(db_session, session_record, user_input)
+    activate Traverser
+    
+    Traverser->>Traverser: Acquire asyncio lock for session_id
+    Traverser->>DB: Set locked_until in DB (concurrency control)
+    Traverser->>DB: Load CompiledGraph & CarryUnit JSON
+    
+    Note over Traverser: Traversal Loop Starts (Max depth 10)
+    Traverser->>Traverser: Evaluate condition edges to identify next node
+    Traverser->>DB: Create DB Savepoint (nested transaction)
+    Traverser->>DB: Write WAL journal: BEGIN_NODE
+    
+    Traverser->>FSM: Check transition legality (current_state -> target_state)
+    FSM-->>Traverser: Allowed
+    
+    Traverser->>Module: validate_inputs(carry_unit)
+    
+    Note over Traverser, Module: Check Cache for non-idempotent modules
+    Traverser->>Module: execute(carry_unit, config, user_input)
+    activate Module
+    Module-->>Traverser: Returns ModuleOutput (outputs, messages, ui, side_effects)
+    deactivate Module
+    
+    Traverser->>DB: Write WAL journal: MODULE_EXECUTED
+    Traverser->>Module: validate_outputs(outputs)
+    
+    Traverser->>Traverser: carry_unit.merge_patch(outputs)
+    Note over Traverser: Enforces immutability & locks
+    
+    Traverser->>FSM: Transition state
+    FSM-->>Traverser: Returns new FSM state
+    Traverser->>DB: Emit FSM_TRANSITIONED event, Write ExecutionLog & ExecutionSnapshot
+    Traverser->>DB: Write WAL journal: SNAPSHOT_WRITTEN, NODE_COMMITTED
+    Traverser->>DB: Commit Node Savepoint
+    
+    Note over Traverser: Traversal Loop Ends (Halted at User-Input Node or Terminal Node)
+    
+    Traverser->>DB: Commit overall Step Transaction
+    Traverser->>Traverser: Release asyncio lock
+    deactivate Traverser
+    
+    Traverser-->>API: Returns DispatchResponse
+    API->>API: Register side-effects in ExternalOperation registry
+    API->>DB: Commit side-effect registrations
+    API-->>n8n: Returns ApiResponse[DispatchResponse] (including messages, UI, side effects)
+    
+    par Async Side-Effect Execution
+        API->>API: Spawns background task run_side_effect()
+        API->>DB: Mark ExternalOperation COMPLETED
+    and n8n Message Delivery
+        n8n->>Customer: Dispatch messages (e.g. "Cart Summary Total $12.00")
+    end

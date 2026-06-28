@@ -1,0 +1,16 @@
+{
+  "module_name": "membership_management",
+  "version": "1.0",
+  "category": "Salon",
+  "description": "Manages salon membership status",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "salon.membership_status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

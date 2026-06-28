@@ -1,0 +1,17 @@
+{
+  "module_name": "collect_contact_details",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Collects phone or email from customer",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "customer.phone": "str",
+    "customer.email": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

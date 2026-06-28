@@ -1,0 +1,14 @@
+{
+  "module_name": "admission_enquiry",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Handles student admission enquiries",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

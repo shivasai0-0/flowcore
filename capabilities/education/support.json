@@ -1,0 +1,16 @@
+{
+  "module_name": "support",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Student academic support support",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "SUPPORT_REQUESTED"
+  ],
+  "events_consumed": []
+}

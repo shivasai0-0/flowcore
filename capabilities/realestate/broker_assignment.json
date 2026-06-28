@@ -1,0 +1,16 @@
+{
+  "module_name": "broker_assignment",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Assigns real estate broker",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "realestate.broker_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

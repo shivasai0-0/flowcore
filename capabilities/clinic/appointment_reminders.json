@@ -1,0 +1,12 @@
+{
+  "module_name": "appointment_reminders",
+  "version": "1.0",
+  "category": "Clinic",
+  "description": "Schedules appointment reminders",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

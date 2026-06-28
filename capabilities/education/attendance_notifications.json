@@ -1,0 +1,12 @@
+{
+  "module_name": "attendance_notifications",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Sends student attendance notifications",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

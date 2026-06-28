@@ -1,0 +1,16 @@
+{
+  "module_name": "assign_task",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Assigns a task to a worker",
+  "inputs": [],
+  "outputs": {
+    "task.id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "TASK_CREATED"
+  ],
+  "events_consumed": []
+}

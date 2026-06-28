@@ -1,0 +1,12 @@
+{
+  "module_name": "review_cart",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Reviews the current cart contents",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

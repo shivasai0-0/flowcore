@@ -1,0 +1,14 @@
+{
+  "module_name": "medicine_catalog",
+  "version": "1.0",
+  "category": "Pharmacy",
+  "description": "Displays list of catalog medicines",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

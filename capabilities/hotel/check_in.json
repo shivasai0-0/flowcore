@@ -1,0 +1,14 @@
+{
+  "module_name": "check_in",
+  "version": "1.0",
+  "category": "Hotel",
+  "description": "Handles guest check-in processing",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

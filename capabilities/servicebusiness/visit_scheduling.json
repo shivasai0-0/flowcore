@@ -1,0 +1,16 @@
+{
+  "module_name": "visit_scheduling",
+  "version": "1.0",
+  "category": "ServiceBusiness",
+  "description": "Schedules technician visit slot",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "service.scheduled_time": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

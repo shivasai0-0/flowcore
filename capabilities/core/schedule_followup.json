@@ -1,0 +1,14 @@
+{
+  "module_name": "schedule_followup",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Schedules followup turn",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "delay_seconds"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

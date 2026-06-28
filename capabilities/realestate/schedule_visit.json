@@ -1,0 +1,16 @@
+{
+  "module_name": "schedule_visit",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Schedules viewing visit",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "realestate.visit_time": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

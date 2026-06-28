@@ -1,0 +1,18 @@
+{
+  "module_name": "request_approval",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Requests manager approval",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "approval.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "APPROVAL_REQUESTED"
+  ],
+  "events_consumed": []
+}

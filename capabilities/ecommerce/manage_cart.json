@@ -1,0 +1,16 @@
+{
+  "module_name": "manage_cart",
+  "version": "1.0",
+  "category": "Ecommerce",
+  "description": "Adds or removes items from cart",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "order.items": "list"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

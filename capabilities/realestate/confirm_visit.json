@@ -1,0 +1,16 @@
+{
+  "module_name": "confirm_visit",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Confirms property visit",
+  "inputs": [],
+  "outputs": {
+    "realestate.visit_status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "BOOKING_CREATED"
+  ],
+  "events_consumed": []
+}

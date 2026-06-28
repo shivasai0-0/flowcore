@@ -1,0 +1,16 @@
+{
+  "module_name": "approve_request",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Approves approval request",
+  "inputs": [],
+  "outputs": {
+    "approval.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "APPROVAL_GRANTED"
+  ],
+  "events_consumed": []
+}

@@ -1,0 +1,14 @@
+{
+  "module_name": "record_conversion",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Records business conversion event",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "conversion_type"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

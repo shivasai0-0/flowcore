@@ -1,0 +1,57 @@
+{
+  "business_id": "biz_faq_999",
+  "version_number": 1,
+  "entry_node_id": "node_welcome",
+  "nodes": {
+    "node_welcome": {
+      "id": "node_welcome",
+      "module_name": "send_message",
+      "config": {
+        "text": "Welcome to FlowCore FAQ. Reply 1 for Hours, 2 for Location."
+      },
+      "fsm_transition_to": "MENU"
+    },
+    "node_hours": {
+      "id": "node_hours",
+      "module_name": "send_message",
+      "config": {
+        "text": "We are open Monday to Friday, 9 AM to 6 PM."
+      },
+      "fsm_transition_to": "MENU"
+    },
+    "node_location": {
+      "id": "node_location",
+      "module_name": "send_message",
+      "config": {
+        "text": "We are located at 123 Main Street, Suite 400."
+      },
+      "fsm_transition_to": "MENU"
+    }
+  },
+  "edges": [
+    {
+      "from_node": "node_welcome",
+      "to_node": "node_hours",
+      "condition": {
+        "type": "input_equals",
+        "value": "1"
+      }
+    },
+    {
+      "from_node": "node_welcome",
+      "to_node": "node_location",
+      "condition": {
+        "type": "input_equals",
+        "value": "2"
+      }
+    }
+  ],
+  "fsm_transition_table": {
+    "START": {
+      "MENU": "send_message"
+    },
+    "MENU": {
+      "MENU": "send_message"
+    }
+  }
+}

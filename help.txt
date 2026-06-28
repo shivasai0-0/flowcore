@@ -1,0 +1,24 @@
+$env:Path = "C:\Program Files\nodejs;" + $env:Path;
+ npm.cmd run dev
+
+import asyncio
+from sqlalchemy import text, delete
+from src.database import AsyncSessionLocal, engine
+from src.models import Session as SessionModel
+
+async def delete_session_by_phone(phone_number: str):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            # If using SQLite, enable foreign keys constraint enforcement 
+            # to make sure the ON DELETE CASCADE triggers work.
+            if engine.url.drivername.startswith("sqlite"):
+                await session.execute(text("PRAGMA foreign_keys = ON;"))
+            
+            # Construct and execute the delete statement
+            stmt = delete(SessionModel).where(SessionModel.customer_phone == phone_number)
+            result = await session.execute(stmt)
+            
+            print(f"Deleted sessions for {phone_number}. Rows affected: {result.rowcount}")
+
+if __name__ == "__main__":
+    asyncio.run(delete_session_by_phone("919030981220"))

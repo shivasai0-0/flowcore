@@ -1,0 +1,12 @@
+{
+  "module_name": "send_reminder",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Schedules appointment reminders",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

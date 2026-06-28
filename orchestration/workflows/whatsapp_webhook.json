@@ -1,0 +1,59 @@
+{
+  "name": "WhatsApp Ingest Webhook Segment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-ingest",
+        "options": {}
+      },
+      "id": "webhook_node",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "customer_phone",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].from }}"
+            },
+            {
+              "name": "message_body",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].text.body }}"
+            },
+            {
+              "name": "business_id",
+              "value": "={{ $json.body.entry[0].changes[0].value.metadata.phone_number_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_params",
+      "name": "Extract Metadata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [400, 200]
+    }
+  ],
+  "connections": {
+    "webhook_node": {
+      "main": [
+        [
+          {
+            "node": "set_params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

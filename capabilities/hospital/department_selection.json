@@ -1,0 +1,16 @@
+{
+  "module_name": "department_selection",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Selects hospital department",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "hospital.department": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

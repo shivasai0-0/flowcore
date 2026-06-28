@@ -1,0 +1,463 @@
+{
+  "name": "FlowCore — Dynamic WhatsApp Orchestrator",
+  "nodes": [
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp",
+        "options": {},
+        "responseMode": "responseNode"
+      },
+      "id": "node_meta_verify_trigger",
+      "name": "Meta Webhook Verify (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 500],
+      "notes": "Meta calls GET with hub.mode=subscribe, hub.challenge, hub.verify_token to verify the webhook endpoint before enabling it."
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.query['hub.mode'] }}",
+              "operation": "equal",
+              "value2": "subscribe"
+            },
+            {
+              "value1": "={{ $json.query['hub.verify_token'] }}",
+              "operation": "equal",
+              "value2": "={{ $env.META_WEBHOOK_VERIFY_TOKEN }}"
+            }
+          ]
+        }
+      },
+      "id": "node_verify_token_check",
+      "name": "Verify Token Matches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 500],
+      "notes": "Checks hub.mode == 'subscribe' AND hub.verify_token matches the env-configured secret."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node_verify_success_response",
+      "name": "Respond: hub.challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [500, 420],
+      "notes": "Returns the hub.challenge value as plain text. Meta requires this exact response to activate the webhook."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "node_verify_fail_response",
+      "name": "Respond: 403 Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [500, 580],
+      "notes": "Returns 403 if verify_token doesn't match. Prevents unauthorized webhook registrations."
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "options": {},
+        "responseMode": "responseNode"
+      },
+      "id": "node_webhook_ingest",
+      "name": "WhatsApp Message Ingest (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200],
+      "notes": "Receives all incoming WhatsApp messages from Meta Cloud API."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const entry = $json.body.entry?.[0];\nconst change = entry?.changes?.[0]?.value;\nconst message = change?.messages?.[0];\nconst metadata = change?.metadata;\n\nif (!message || message.type !== 'text') {\n  // Not a text message — silently ack and stop\n  return [];\n}\n\nreturn [{\n  json: {\n    meta_phone_number_id: metadata?.phone_number_id,\n    customer_phone: message.from,\n    message_body: message.text?.body,\n    wa_message_id: message.id,\n    timestamp: message.timestamp\n  }\n}];"
+      },
+      "id": "node_extract_payload",
+      "name": "Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200],
+      "notes": "Pulls out the key fields from Meta's nested webhook payload: phone_number_id (to identify the business), customer_phone, and message_body."
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://localhost:8000/api/v1/businesses/by-phone-id/{{ $json.meta_phone_number_id }}",
+        "options": {}
+      },
+      "id": "node_resolve_business",
+      "name": "Resolve Business by Phone ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 200],
+      "notes": "Dynamically resolves which FlowCore business owns this Meta Phone Number ID. No hardcoding — any business can register any number."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const business = $json.data;\nconst extracted = $node['Extract Payload'].json;\n\nreturn [{\n  json: {\n    business_id: business.id,\n    business_name: business.name,\n    customer_phone: extracted.customer_phone,\n    message_body: extracted.message_body,\n    session_key: `sess_${extracted.customer_phone}`\n  }\n}];"
+      },
+      "id": "node_merge_context",
+      "name": "Merge Business + Message Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 200],
+      "notes": "Combines resolved business_id with extracted customer_phone and message into a clean context object for downstream nodes."
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://localhost:8000/api/v1/sessions/inspect/{{ $json.session_key }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node_inspect_session",
+      "name": "Inspect Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200],
+      "notes": "Checks if an active session already exists for this customer on this business. Returns 404 if not."
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.success }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "node_session_exists",
+      "name": "Session Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/sessions",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "business_id",
+              "value": "={{ $node['Merge Business + Message Context'].json.business_id }}"
+            },
+            {
+              "name": "customer_phone",
+              "value": "={{ $node['Merge Business + Message Context'].json.customer_phone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_create_session",
+      "name": "Create New Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1300, 100],
+      "notes": "Creates a new FlowCore traversal session for this customer. Session is scoped to the resolved business."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Build the session_id to dispatch against\nconst inspectResult = $node['Inspect Session'].json;\nconst createResult = $node['Create New Session']?.json;\n\nconst session_id = inspectResult?.data?.session_id || createResult?.data?.session_id;\nconst message_body = $node['Merge Business + Message Context'].json.message_body;\nconst customer_phone = $node['Merge Business + Message Context'].json.customer_phone;\n\nreturn [{ json: { session_id, message_body, customer_phone } }];"
+      },
+      "id": "node_resolve_session_id",
+      "name": "Resolve Session ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 200],
+      "notes": "Picks the session_id from either the existing session (inspect) or the newly created one."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:8000/api/v1/sessions/dispatch/{{ $json.session_id }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_input",
+              "value": "={{ $json.message_body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_dispatch",
+      "name": "Dispatch Traversal Step",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1700, 200],
+      "notes": "Sends the customer's message into FlowCore's deterministic traversal engine. Returns messages_sent and side_effects."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const dispatch = $json.data;\nconst messages = dispatch?.messages_sent || [];\nconst effects = dispatch?.side_effects || [];\n\nconst hasMessages = messages.length > 0;\nconst hasPayment = effects.some(e => e.side_effect === 'external_gateway_handshake');\nconst hasDelivery = effects.some(e => e.side_effect === 'dispatch_delivery_courier');\n\n// Build WhatsApp reply text from all messages\nconst replyText = messages.map(m => m.content).join('\\n\\n');\n\nreturn [{\n  json: {\n    reply_text: replyText,\n    customer_phone: $node['Resolve Session ID'].json.customer_phone,\n    has_messages: hasMessages,\n    has_payment: hasPayment,\n    has_delivery: hasDelivery,\n    carry_unit: dispatch?.carry_unit,\n    side_effects: effects\n  }\n}];"
+      },
+      "id": "node_parse_dispatch_result",
+      "name": "Parse Dispatch Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 200],
+      "notes": "Reads the FlowCore dispatch response and extracts: reply messages to send, and flags for payment/delivery side-effects."
+    },
+
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "type": "boolean" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_payment }}",
+                    "operator": "equals",
+                    "rightValue": true
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "payment"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "type": "boolean" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_delivery }}",
+                    "operator": "equals",
+                    "rightValue": true
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delivery"
+            }
+          ]
+        },
+        "defaultTabIndex": 2
+      },
+      "id": "node_side_effect_router",
+      "name": "Side Effect Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [2100, 200],
+      "notes": "Routes execution based on side-effects: payment → Stripe, delivery → courier dispatch, default → send WhatsApp reply."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/payment_links",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.STRIPE_SECRET_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "line_items[0][price]",
+              "value": "={{ $json.carry_unit.data.payment.price_id || 'price_placeholder' }}"
+            },
+            {
+              "name": "line_items[0][quantity]",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_stripe_payment",
+      "name": "Stripe: Create Payment Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 80]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:8000/api/v1/mock/delivery/dispatch",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "recipient_address",
+              "value": "={{ $json.carry_unit.data.customer.address }}"
+            },
+            {
+              "name": "recipient_phone",
+              "value": "={{ $json.customer_phone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_delivery_dispatch",
+      "name": "Delivery: Dispatch Courier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 320]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.META_PHONE_NUMBER_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.META_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $node['Parse Dispatch Result'].json.customer_phone }}\",\n  \"type\": \"text\",\n  \"text\": { \"body\": {{ JSON.stringify($node['Parse Dispatch Result'].json.reply_text) }} }\n}",
+        "options": {}
+      },
+      "id": "node_send_whatsapp",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2500, 200],
+      "notes": "Sends the FlowCore-generated reply back to the customer via Meta Cloud API v19.0."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node_ack_meta",
+      "name": "ACK Meta (200 OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2700, 200],
+      "notes": "Meta requires a 200 OK within 20 seconds or it will retry the webhook. Always acknowledge immediately."
+    }
+
+  ],
+  "connections": {
+    "Meta Webhook Verify (GET)": {
+      "main": [[{ "node": "Verify Token Matches?", "type": "main", "index": 0 }]]
+    },
+    "Verify Token Matches?": {
+      "main": [
+        [{ "node": "Respond: hub.challenge", "type": "main", "index": 0 }],
+        [{ "node": "Respond: 403 Forbidden", "type": "main", "index": 0 }]
+      ]
+    },
+    "WhatsApp Message Ingest (POST)": {
+      "main": [[{ "node": "Extract Payload", "type": "main", "index": 0 }]]
+    },
+    "Extract Payload": {
+      "main": [[{ "node": "Resolve Business by Phone ID", "type": "main", "index": 0 }]]
+    },
+    "Resolve Business by Phone ID": {
+      "main": [[{ "node": "Merge Business + Message Context", "type": "main", "index": 0 }]]
+    },
+    "Merge Business + Message Context": {
+      "main": [[{ "node": "Inspect Session", "type": "main", "index": 0 }]]
+    },
+    "Inspect Session": {
+      "main": [[{ "node": "Session Exists?", "type": "main", "index": 0 }]]
+    },
+    "Session Exists?": {
+      "main": [
+        [{ "node": "Resolve Session ID", "type": "main", "index": 0 }],
+        [{ "node": "Create New Session", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create New Session": {
+      "main": [[{ "node": "Resolve Session ID", "type": "main", "index": 0 }]]
+    },
+    "Resolve Session ID": {
+      "main": [[{ "node": "Dispatch Traversal Step", "type": "main", "index": 0 }]]
+    },
+    "Dispatch Traversal Step": {
+      "main": [[{ "node": "Parse Dispatch Result", "type": "main", "index": 0 }]]
+    },
+    "Parse Dispatch Result": {
+      "main": [[{ "node": "Side Effect Router", "type": "main", "index": 0 }]]
+    },
+    "Side Effect Router": {
+      "main": [
+        [{ "node": "Stripe: Create Payment Link", "type": "main", "index": 0 }],
+        [{ "node": "Delivery: Dispatch Courier", "type": "main", "index": 0 }],
+        [{ "node": "Send WhatsApp Reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Stripe: Create Payment Link": {
+      "main": [[{ "node": "Send WhatsApp Reply", "type": "main", "index": 0 }]]
+    },
+    "Delivery: Dispatch Courier": {
+      "main": [[{ "node": "Send WhatsApp Reply", "type": "main", "index": 0 }]]
+    },
+    "Send WhatsApp Reply": {
+      "main": [[{ "node": "ACK Meta (200 OK)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f782c3c9-0298-4bd8-a28d-19f8ca7315be",
+  "id": "1"
+}

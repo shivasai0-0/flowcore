@@ -1,0 +1,14 @@
+{
+  "module_name": "assign_agent",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Assigns lead agent",
+  "inputs": [],
+  "outputs": {
+    "realestate.agent_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

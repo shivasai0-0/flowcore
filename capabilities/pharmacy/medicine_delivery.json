@@ -1,0 +1,19 @@
+{
+  "module_name": "medicine_delivery",
+  "version": "1.0",
+  "category": "Pharmacy",
+  "description": "Schedules pharmacy medicine delivery",
+  "inputs": [],
+  "outputs": {
+    "logistics.delivery_id": "str",
+    "logistics.status": "str"
+  },
+  "required_config": [
+    "delivery_provider"
+  ],
+  "optional_config": [],
+  "events_emitted": [
+    "DELIVERY_CREATED"
+  ],
+  "events_consumed": []
+}

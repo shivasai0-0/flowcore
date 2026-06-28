@@ -1,0 +1,14 @@
+{
+  "module_name": "course_catalog",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Displays courses catalog",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

@@ -1,0 +1,14 @@
+{
+  "module_name": "enrollment_confirmation",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Confirms student enrollment",
+  "inputs": [],
+  "outputs": {
+    "education.enrollment_status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

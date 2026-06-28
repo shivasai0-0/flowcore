@@ -1,0 +1,16 @@
+{
+  "module_name": "create_order",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Creates order entry in PLACED state",
+  "inputs": [],
+  "outputs": {
+    "order.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "ORDER_CREATED"
+  ],
+  "events_consumed": []
+}

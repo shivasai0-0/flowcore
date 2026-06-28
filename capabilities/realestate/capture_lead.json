@@ -1,0 +1,16 @@
+{
+  "module_name": "capture_lead",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Captures lead details",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "realestate.lead_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

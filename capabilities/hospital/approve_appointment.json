@@ -1,0 +1,16 @@
+{
+  "module_name": "approve_appointment",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Requests manager approval",
+  "inputs": [],
+  "outputs": {
+    "approval.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "APPROVAL_REQUESTED"
+  ],
+  "events_consumed": []
+}

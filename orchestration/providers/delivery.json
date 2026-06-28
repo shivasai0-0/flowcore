@@ -1,0 +1,49 @@
+{
+  "name": "Mock Delivery Provider Segment",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/mock/delivery/dispatch",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "recipient_address",
+              "value": "={{ $json.address }}"
+            },
+            {
+              "name": "recipient_phone",
+              "value": "={{ $json.customer_phone }}"
+            },
+            {
+              "name": "order_details",
+              "value": "={{ $json.order_details }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "delivery_dispatch_request",
+      "name": "Dispatch Delivery Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delivery-webhook",
+        "options": {}
+      },
+      "id": "delivery_webhook_trigger",
+      "name": "Delivery Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 400]
+    }
+  ],
+  "connections": {},
+  "active": true,
+  "settings": {}
+}

@@ -1,0 +1,12 @@
+{
+  "module_name": "complete_consultation",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Completes clinic consultation",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

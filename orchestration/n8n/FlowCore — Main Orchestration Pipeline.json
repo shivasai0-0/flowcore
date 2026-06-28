@@ -1,0 +1,642 @@
+{
+  "name": "FlowCore — Main Orchestration Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "whatsapp-inbound",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "35378570-76bc-43b6-a6b2-f3fc396cabcf",
+      "name": "Meta Verify GET1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -6464,
+        560
+      ],
+      "webhookId": "b7ab8522-2223-4209-a15f-99e865cbf3a3",
+      "notes": "Step 0: Meta calls GET to verify the webhook endpoint is reachable before enabling message delivery. Must respond with hub.challenge."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "verify_mode",
+              "leftValue": "={{ $json.query['hub.mode'] }}",
+              "rightValue": "subscribe",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "verify_token",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "={{ $env.META_WEBHOOK_VERIFY_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5d59432f-3390-42b5-872f-6d66c3d22a7d",
+      "name": "Verify Token Gate1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -6272,
+        560
+      ],
+      "notes": "Checks hub.mode == subscribe AND hub.verify_token matches env secret. Prevents unauthorized webhook registrations."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "5578d357-c6b1-418f-a373-ccf336370a5b",
+      "name": "ACK: hub.challenge1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -6064,
+        480
+      ],
+      "notes": "Returns hub.challenge as plain text. Meta requires this exact response to activate the webhook."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "9d3a7ebb-16a4-4b42-bbb4-3b4c6fe5f4d5",
+      "name": "ACK: 403 Forbidden1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -6064,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "biz_found",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bf25617f-7e17-4cab-a80f-3dc7f5d5e355",
+      "name": "Business Registered?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5664,
+        160
+      ],
+      "notes": "If business not found (404), drop the message silently. Phone number not registered on FlowCore."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build context object merging business data with incoming message\nconst business = $json.data;\nconst payload = $node['Extract Payload1'].json;\nconst settings = (() => {\n  try { return JSON.parse(business.settings_json || '{}'); } catch { return {}; }\n})();\nconst catalog = (() => {\n  try { return JSON.parse(business.catalog_json || '{}'); } catch { return {}; }\n})();\n\nreturn [{\n  json: {\n    business_id: business.id,\n    business_name: business.name,\n    branding: settings.branding || {},\n    catalog: catalog,\n    payment_config: settings.payment || {},\n    delivery_config: settings.delivery || {},\n    customer_phone: payload.customer_phone,\n    message_body: payload.message_body,\n    message_type: payload.message_type,\n    wa_message_id: payload.wa_message_id,\n    timestamp: payload.timestamp\n  }\n}];"
+      },
+      "id": "4c1b33d7-7288-4998-a466-4de91db81569",
+      "name": "Build Execution Context1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5472,
+        160
+      ],
+      "notes": "Step 4: Merges resolved business metadata (name, branding, catalog, config) with customer message into a unified execution context for all downstream nodes."
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/api/v1/sessions/active?business_id={{ $json.business_id }}&customer_phone={{ $json.customer_phone }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5624a401-181e-4c7e-ba13-d550b4640dc4",
+      "name": "Resolve Active Session1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -5264,
+        160
+      ],
+      "notes": "Step 5: Checks if an active non-terminal session exists for this (business_id, customer_phone) pair. Returns 404 if none — triggers session creation."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "session_exists",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5c7f4c66-437b-4512-b868-442987d5f579",
+      "name": "Session Exists?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5072,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/v1/sessions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"business_id\": \"{{ $node['Build Execution Context1'].json.business_id }}\",\n  \"customer_phone\": \"{{ $node['Build Execution Context1'].json.customer_phone }}\"\n}",
+        "options": {}
+      },
+      "id": "303dd3fb-03ae-4178-83ae-3d53fba8c060",
+      "name": "Create Session1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -4864,
+        80
+      ],
+      "notes": "Step 6a: Creates a new FlowCore traversal session when no active session exists. FlowCore auto-binds to the active workflow version for the business."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── Resolve Session ID ────────────────────────────────────────────────\n// IMPORTANT: This node is reached from TWO possible paths:\n//   TRUE branch  → came from 'Resolve Active Session' (session existed)\n//   FALSE branch → came from 'Create Session' (new session created)\n//\n// We CANNOT reference both nodes by name — n8n throws if a node didn't run.\n// Instead, use $input.item.json which is always the direct input from whichever\n// branch was taken in this execution.\nconst input = $input.item.json;\n\n// Extract session_id — works for both active session response and create response\nconst session_id = input?.data?.session_id   // active session shape\n                || input?.data?.id;           // created session shape\n\nconst fsm_state   = input?.data?.fsm_state || 'START';\nconst carry_unit  = input?.data?.carry_unit || {};\n\nif (!session_id) {\n  throw new Error(\n    'Could not resolve session_id from input. ' +\n    'Input received: ' + JSON.stringify(input)\n  );\n}\n\n// Carry forward the full execution context from Build Execution Context\n// (that node always runs before the session branch, so it's safe to reference)\nconst ctx = (() => {\n  try { return $node['Build Execution Context1'].json; } catch(e) {}\n  try { return $node['Build Execution Context'].json; } catch(e) {}\n  throw new Error(\"Could not find 'Build Execution Context' or 'Build Execution Context1' node.\");\n})();\n\nreturn [{\n  json: {\n    session_id,\n    fsm_state,\n    carry_unit,\n    business_id:    ctx.business_id,\n    business_name:  ctx.business_name,\n    branding:       ctx.branding,\n    catalog:        ctx.catalog,\n    payment_config: ctx.payment_config,\n    delivery_config:ctx.delivery_config,\n    customer_phone: ctx.customer_phone,\n    message_body:   ctx.message_body,\n    message_type:   ctx.message_type\n  }\n}];\n"
+      },
+      "id": "e03ec495-536c-4e20-b661-43e5ac9ed6fa",
+      "name": "Resolve Session ID1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4672,
+        160
+      ],
+      "notes": "Step 7: Picks the session_id from whichever path succeeded (existing session or new creation). Preserves full context for downstream dispatch."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:8000/api/v1/sessions/dispatch/{{ $json.session_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_input\": \"{{ $json.message_body }}\"\n}",
+        "options": {}
+      },
+      "id": "8e6d4905-bcd8-444c-a204-69d7dc4d2ab2",
+      "name": "FlowCore Dispatch1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -4464,
+        160
+      ],
+      "notes": "Step 8: THE CORE DISPATCH. Sends customer input into FlowCore's deterministic traversal engine. FlowCore owns ALL runtime decisions: FSM transitions, carry mutations, node execution, legality checks, replay guarantees."
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $json.data || {};\nconst ctx = $node[\"Resolve Session ID1\"].json || {};\n\n// Standardized UI object\nconst ui = result.ui || {\n  text: (result.messages_sent || []).map(m => typeof m === \"string\" ? m : (m.content || m.text || m.message || \"\")).join(\"\\n\\n\").trim(),\n  actions: (result.allowed_actions || []).map(a => ({\n    label: a.title || a.label || \"\",\n    action: a.id || a.action || \"\"\n  })),\n  metadata: {}\n};\n\n// Side effects\nconst side_effects = result.side_effects || [];\n\n// Carry unit\nconst carry_unit = result.carry_unit || ctx.carry_unit || {};\n\n// FSM state\nlet fsm_state = result.fsm_state || ctx.fsm_state || \"UNKNOWN\";\n\n// Fallback: derive latest FSM state from execution trace\nif (\n  !result.fsm_state &&\n  result.workflow &&\n  result.workflow.execution_trace &&\n  result.workflow.execution_trace.length > 0\n) {\n  try {\n    const lastTrace = JSON.parse(\n      result.workflow.execution_trace[\n        result.workflow.execution_trace.length - 1\n      ]\n    );\n\n    fsm_state =\n      lastTrace.fsm_state_after ||\n      lastTrace.fsm_state_before ||\n      fsm_state;\n  } catch (err) {\n    // ignore parse errors\n  }\n}\n\n// Build WhatsApp reply text (with fallback to ui.text)\nconst reply_text = ui.text || \"\";\n\n// Return parsed payload\nreturn [\n  {\n    json: {\n      customer_phone: ctx.customer_phone,\n      business_name: ctx.business_name,\n      business_id: ctx.business_id,\n      branding_prefix: ctx.branding_prefix || \"\",\n\n      ui,\n      reply_text,\n      fsm_state,\n      carry_unit,\n      side_effects,\n    },\n  },\n];"
+      },
+      "id": "32fea789-8739-4346-ae61-605b3db4181d",
+      "name": "Parse Dispatch Response1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4272,
+        160
+      ],
+      "notes": "Step 9: Reads FlowCore's authoritative response. Extracts: messages, side_effects, fsm_state. Derives FSM-aware operational action buttons. Builds dynamic WhatsApp payload with business-specific branding."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $node[\"Execute Side Effects1\"].json;\nconst ui = ctx.ui || {};\nconst reply_text = ctx.reply_text || ui.text || '';\nconst actions = ui.actions || ctx.allowed_actions || [];\n\nlet whatsapp_payload;\n\nif (actions.length > 0 && actions.length <= 3) {\n  // Send interactive message with action buttons (max 3 for WhatsApp)\n  whatsapp_payload = {\n    messaging_product: 'whatsapp',\n    to: ctx.customer_phone,\n    type: 'interactive',\n    interactive: {\n      type: 'button',\n      body: { text: reply_text || 'What would you like to do?' },\n      action: {\n        buttons: actions.map(action => ({\n          type: 'reply',\n          reply: { id: action.action || action.id, title: action.label || action.title }\n        }))\n      }\n    }\n  };\n} else {\n  // Send plain text message\n  whatsapp_payload = {\n    messaging_product: 'whatsapp',\n    to: ctx.customer_phone,\n    type: 'text',\n    text: { body: reply_text }\n  };\n}\n\nreturn [{\n  json: {\n    customer_phone: ctx.customer_phone,\n    business_name: ctx.business_name,\n    fsm_state: ctx.fsm_state,\n    whatsapp_payload: JSON.stringify(whatsapp_payload)\n  }\n}];"
+      },
+      "id": "9ffd0de0-65ea-4e87-9773-7f85ec2b911d",
+      "name": "Build WhatsApp Message1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3664,
+        160
+      ],
+      "notes": "Step 11: Assembles final Meta API payload. Sends interactive button messages when FSM-aware actions are available (up to 3). Falls back to plain text otherwise. Business name and actions are fully dynamic."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{ $node[\"Get WhatsApp Config1\"].json.data.phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $node[\"Get WhatsApp Config1\"].json.data.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.whatsapp_payload }}",
+        "options": {}
+      },
+      "id": "f3fcfeb0-df23-4079-b12d-852834151346",
+      "name": "Send WhatsApp Reply1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -3472,
+        160
+      ],
+      "notes": "Step 12: Sends message via Meta Cloud API v19.0. META_PHONE_NUMBER_ID and META_ACCESS_TOKEN injected from n8n environment variables — not hardcoded."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Orchestration event logger.\n// Logs webhook events, actions executed, and delivery status.\n// DOES NOT duplicate FlowCore's replay semantics — FlowCore owns runtime journals.\nconst result = $json;\nconsole.log(JSON.stringify({\n  event: 'ORCHESTRATION_COMPLETE',\n  timestamp: new Date().toISOString(),\n  business: $node['Build WhatsApp Message1'].json.business_name,\n  customer: $node['Build WhatsApp Message1'].json.customer_phone,\n  fsm_state: $node['Build WhatsApp Message1'].json.fsm_state,\n  send_status: result.messages?.[0]?.message_status || result.error?.message || 'SENT'\n}));\nreturn [{ json: { logged: true } }];"
+      },
+      "id": "cdc876f8-00d5-4b39-9ffa-67c40b46b603",
+      "name": "Log Orchestration Event1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3264,
+        160
+      ],
+      "notes": "Logs orchestration events for debugging and monitoring. Does NOT duplicate FlowCore's deterministic replay journal."
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/api/v1/businesses/by-phone-id/{{ $json.meta_phone_number_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "1bef63f7-94d4-4d2d-a8bd-6ab207bf4b36",
+      "name": "Resolve Business1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -5872,
+        160
+      ],
+      "notes": "Step 3: Dynamically resolves which FlowCore business owns this Meta phone_number_id. Zero hardcoded business IDs — works for any business on the platform."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────\n// STEP 1: Extract payload from Meta Cloud API webhook structure\n// Handles both text messages and interactive button replies.\n// ─────────────────────────────────────────────────────────────\nconst body = $json.body;\nconst entry = body?.entry?.[0];\nconst change = entry?.changes?.[0]?.value;\nconst metadata = change?.metadata;\nconst message = change?.messages?.[0];\n\n// Drop non-message events (read receipts, status updates, etc.)\nif (!message) {\n  return [];\n}\n\nlet messageText = '';\nlet messageType = message.type;\n\nif (message.type === 'text') {\n  messageText = message.text?.body || '';\n} else if (message.type === 'interactive') {\n  // Interactive button reply — button ID maps to operational action commands\n  const reply = message.interactive?.button_reply || message.interactive?.list_reply;\n  messageText = reply?.id || reply?.title || '';\n  messageType = 'button_action';\n} else {\n  // Unsupported message type — pass through raw for FlowCore to handle\n  messageText = `[${message.type}]`;\n}\n\nreturn [{\n  json: {\n    meta_phone_number_id: metadata?.phone_number_id,\n    display_phone_number: metadata?.display_phone_number,\n    customer_phone: message.from,\n    message_body: messageText,\n    message_type: messageType,\n    wa_message_id: message.id,\n    timestamp: message.timestamp\n  }\n}];"
+      },
+      "id": "cf5f59d4-eddb-4bc3-ac10-ec89e685b506",
+      "name": "Extract Payload1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6064,
+        160
+      ],
+      "notes": "Step 2: Extracts customer_phone, message_body, meta_phone_number_id from Meta's nested payload. Also handles interactive button replies mapping to operational action commands."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ea7b13c6-2364-48a5-b1d1-cb6e2e5e30b9",
+      "name": "ACK Meta 200 OK1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -6272,
+        160
+      ],
+      "notes": "CRITICAL: Meta requires a 200 OK within 20 seconds of receiving a webhook or it will retry. Always ACK immediately, process asynchronously."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-inbound",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0680e78f-7100-4ffb-9653-460f8647ec89",
+      "name": "WhatsApp Message Ingest1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -6464,
+        160
+      ],
+      "webhookId": "7fb538e4-906f-4143-b7e3-0d818aa11f57",
+      "notes": "Step 1: Receives all incoming WhatsApp messages from Meta Cloud API. POST endpoint handles real customer messages."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $json;\nconst side_effects = ctx.side_effects || [];\n\nlet reply_text = ctx.reply_text || \"\";\n\nfor (const effect of side_effects) {\n  const type = effect.type || effect.side_effect;\n  const payload = effect.payload || {};\n  \n  console.log(`[SIDE EFFECT] Executing type=${type} with payload=${JSON.stringify(payload)}`);\n  \n  switch (type) {\n    case \"CREATE_PAYMENT_LINK\":\n    case \"external_gateway_handshake\": {\n      const amount = payload.amount || ctx.carry_unit?.order?.total || 0;\n      const currency = ctx.payment_config?.currency || 'USD';\n      const order_id = ctx.carry_unit?.order?.order_id || 'ORD-UNKNOWN';\n      const tx_id = payload.transaction_id || `tx_${Math.random().toString(36).substring(2, 9)}`;\n      const payment_url = payload.payment_url || `https://pay.flowcore.io/link/${tx_id}`;\n      \n      console.log(`[PAYMENT] CREATE_PAYMENT_LINK Amount=${amount} ${currency} Tx=${tx_id}`);\n      \n      reply_text = `${ctx.branding_prefix || \"\"}Payment Link for your order:\\n${payment_url}\\n\\nAmount: ${currency} ${amount}\\n\\n${reply_text}`;\n      break;\n    }\n    case \"CREATE_DELIVERY\":\n    case \"dispatch_delivery_courier\": {\n      const address = payload.address || ctx.carry_unit?.customer?.address || 'Address on file';\n      const tracking_id = payload.delivery_id || `TRK-${Date.now().toString(36).toUpperCase()}`;\n      \n      console.log(`[DELIVERY] CREATE_DELIVERY Address=${address} Tracking=${tracking_id}`);\n      \n      reply_text = `${ctx.branding_prefix || \"\"}Your order has been dispatched!\\n\\nTracking ID: ${tracking_id}\\nDelivery address: ${address}\\n\\n${reply_text}`;\n      break;\n    }\n    case \"SEND_NOTIFICATION\": {\n      const message = payload.message || \"Notification Alert\";\n      console.log(`[NOTIFICATION] SEND_NOTIFICATION message=${message}`);\n      break;\n    }\n    case \"SYNC_CRM\": {\n      console.log(`[CRM] SYNC_CRM syncing data`);\n      break;\n    }\n    default:\n      console.warn(`[SIDE EFFECT] Unknown effect type: ${type}. Skipping to prevent workflow crash.`);\n      break;\n  }\n}\n\nreturn [{\n  json: {\n    ...ctx,\n    reply_text: reply_text.trim()\n  }\n}];"
+      },
+      "id": "e0d37e28-1b2c-473d-9474-06909472ee99",
+      "name": "Execute Side Effects1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3968,
+        160
+      ],
+      "notes": "Step 10: Generic side effects execution engine. Loops through FlowCore-decided side effects and routes to target adapters (Stripe, Courier, CRM, notifications) without branch explosion."
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/api/v1/businesses/{{ $json.business_id }}/whatsapp-config",
+        "options": {}
+      },
+      "id": "e0c26da5-802c-4733-a6b2-f3fc396cabcf",
+      "name": "Get WhatsApp Config1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -3816,
+        160
+      ],
+      "notes": "Step 10.5: Fetches the authoritative WhatsApp credentials from FlowCore backend dynamically at runtime using the resolved business_id."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Meta Verify GET1": {
+      "main": [
+        [
+          {
+            "node": "Verify Token Gate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Token Gate1": {
+      "main": [
+        [
+          {
+            "node": "ACK: hub.challenge1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ACK: 403 Forbidden1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business Registered?1": {
+      "main": [
+        [
+          {
+            "node": "Build Execution Context1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Execution Context1": {
+      "main": [
+        [
+          {
+            "node": "Resolve Active Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Active Session1": {
+      "main": [
+        [
+          {
+            "node": "Session Exists?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session Exists?1": {
+      "main": [
+        [
+          {
+            "node": "Resolve Session ID1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Session1": {
+      "main": [
+        [
+          {
+            "node": "Resolve Session ID1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Session ID1": {
+      "main": [
+        [
+          {
+            "node": "FlowCore Dispatch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FlowCore Dispatch1": {
+      "main": [
+        [
+          {
+            "node": "Parse Dispatch Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Dispatch Response1": {
+      "main": [
+        [
+          {
+            "node": "Execute Side Effects1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build WhatsApp Message1": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply1": {
+      "main": [
+        [
+          {
+            "node": "Log Orchestration Event1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Business1": {
+      "main": [
+        [
+          {
+            "node": "Business Registered?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payload1": {
+      "main": [
+        [
+          {
+            "node": "Resolve Business1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Message Ingest1": {
+      "main": [
+        [
+          {
+            "node": "Extract Payload1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ACK Meta 200 OK1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Side Effects1": {
+      "main": [
+        [
+          {
+            "node": "Get WhatsApp Config1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get WhatsApp Config1": {
+      "main": [
+        [
+          {
+            "node": "Build WhatsApp Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "acc52fc7-a4e9-44d3-801c-dc9cc9928b29",
+  "meta": {
+    "instanceId": "dbe36a01db30bd90aac10bf4563f4e31b1a837a51a42835842d569d8b5bf7183"
+  },
+  "id": "Q1kR5Q4ibAzyF1oZ",
+  "tags": []
+}

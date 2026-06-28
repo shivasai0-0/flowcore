@@ -1,0 +1,16 @@
+{
+  "module_name": "select_doctor",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Assigns hospital doctor",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "hospital.doctor_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

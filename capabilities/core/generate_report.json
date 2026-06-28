@@ -1,0 +1,18 @@
+{
+  "module_name": "generate_report",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Generates business reports such as schedules and summaries",
+  "inputs": [],
+  "outputs": {
+    "report.id": "str"
+  },
+  "required_config": [
+    "report_type"
+  ],
+  "optional_config": [],
+  "events_emitted": [
+    "REPORT_GENERATED"
+  ],
+  "events_consumed": []
+}

@@ -1,0 +1,14 @@
+{
+  "module_name": "update_status",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Updates general workflow status",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

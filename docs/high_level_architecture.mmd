@@ -1,0 +1,60 @@
+graph TD
+    subgraph Client_Space ["Client & Messaging Channels"]
+        WhatsApp["WhatsApp Client"]
+        Dashboard["Next.js Management Dashboard<br/>(React / TypeScript)"]
+    end
+
+    subgraph Orchestration_Layer ["Orchestration Layer (n8n & External Services)"]
+        n8n["n8n Workflow Engine"]
+        Stripe["Stripe Payment Gateway"]
+        Logistics["Delivery Courier Provider"]
+    end
+
+    subgraph Backend_App ["FlowCore API Backend (FastAPI System 1)"]
+        Entry["main.py & lifespan<br/>(Startup & Workers)"]
+        
+        subgraph Routers ["FastAPI Routers"]
+            r_biz["routes/businesses.py"]
+            r_wf["routes/workflows.py"]
+            r_sess["routes/sessions.py"]
+            r_mod["routes/modules.py"]
+            r_snap["routes/snapshots.py"]
+            r_met["routes/metrics.py"]
+            r_test["routes/tests.py"]
+        end
+
+        subgraph Core_Engines ["Core Engines"]
+            traverser["GraphTraversalEngine<br/>(traversal.py)"]
+            compiler["WorkflowCompiler<br/>(compiler.py)"]
+            validator["StaticValidator<br/>(static_validator.py)"]
+            time_travel["TimeTravelEngine<br/>(time_travel.py)"]
+            sim_engine["SimulationEngine<br/>(simulation.py)"]
+            carry_eng["CarryUnitMergeEngine<br/>(merge_engine.py)"]
+            fsm_eng["FSMEngine<br/>(fsm/engine.py)"]
+            se_reg["ExternalOperationRegistry<br/>(side_effects.py)"]
+            retry_worker["Retry Worker Loop<br/>(side_effects.py)"]
+        end
+
+        subgraph Module_Space ["Module Registry & Implementations"]
+            registry["ModuleRegistry<br/>(registry.py)"]
+            impl["ShowMenu, CollectCart, CalculateTotal,<br/>CreateOrder, CreatePayment, ConfirmPayment,<br/>CollectAddress, CreateDelivery, NotifyCustomer"]
+        end
+    end
+
+    subgraph Data_Store ["Database Layer (SQLite / SQLAlchemy)"]
+        db_tables[("SQLite database (flowcore.db)<br/>- businesses<br/>- workflow_versions<br/>- compiled_graphs<br/>- sessions<br/>- execution_logs<br/>- execution_snapshots<br/>- execution_journals<br/>- external_operations<br/>- event_store<br/>- execution_metrics")]
+    end
+
+    %% Communications
+    WhatsApp <-->|Webhooks & Messages| n8n
+    Dashboard <-->|REST API| Routers
+    n8n <-->|API Calls & Webhook Events| Routers
+    n8n <-->|Webhook Events| Stripe
+    n8n <-->|API Dispatches| Logistics
+
+    Entry --> Routers
+    Routers --> Core_Engines
+    Core_Engines --> Module_Space
+    Core_Engines --> db_tables
+    r_biz --> WhatsAppConfigService["WhatsAppConfigService"]
+    WhatsAppConfigService --> db_tables

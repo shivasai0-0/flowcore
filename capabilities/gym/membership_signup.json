@@ -1,0 +1,16 @@
+{
+  "module_name": "membership_signup",
+  "version": "1.0",
+  "category": "Gym",
+  "description": "Gym membership signup",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "gym.membership_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

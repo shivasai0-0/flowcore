@@ -1,0 +1,14 @@
+{
+  "module_name": "assign_staff",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Assigns business staff",
+  "inputs": [],
+  "outputs": {
+    "staff.assigned_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

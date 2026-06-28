@@ -1,0 +1,16 @@
+{
+  "module_name": "medicine_order",
+  "version": "1.0",
+  "category": "Pharmacy",
+  "description": "Places medicine order request",
+  "inputs": [],
+  "outputs": {
+    "order.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "ORDER_CREATED"
+  ],
+  "events_consumed": []
+}

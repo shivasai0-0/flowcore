@@ -1,0 +1,16 @@
+{
+  "module_name": "cancel_delivery",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Cancels delivery order",
+  "inputs": [],
+  "outputs": {
+    "logistics.status": "str"
+  },
+  "required_config": [
+    "delivery_provider"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

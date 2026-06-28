@@ -1,0 +1,76 @@
+graph TD
+    subgraph FastAPI_Endpoints ["API Routers & Endpoints"]
+        create_biz["POST /businesses<br/>(Create Business)"]
+        get_wa_config["GET /businesses/{id}/whatsapp-config<br/>(Get Credentials)"]
+        reg_wf["POST /workflows/register<br/>(Register Graph)"]
+        act_wf["POST /workflows/activate/{id}<br/>(Activate Graph)"]
+        cert_wf["POST /workflows/certify/{id}<br/>(Certify Graph)"]
+        create_sess["POST /sessions<br/>(Create Session)"]
+        disp_sess["POST /sessions/dispatch/{id}<br/>(Dispatch User Input)"]
+        rb_sess["POST /sessions/{id}/rollback/{snap_id}<br/>(Time Travel)"]
+    end
+
+    subgraph Service_Engine_Layer ["Services, Engines & Compilers"]
+        WA_Config["WhatsAppConfigService"]
+        Compiler["WorkflowCompiler"]
+        Validator["StaticValidator"]
+        Optimizer["GraphOptimizer"]
+        Traversal["GraphTraversalEngine"]
+        Simulation["SimulationEngine"]
+        TimeTravel["TimeTravelEngine"]
+    end
+
+    subgraph SQL_Models ["SQLAlchemy Models & Tables"]
+        m_biz["Business"]
+        m_wf["WorkflowVersion"]
+        m_cg["CompiledGraph"]
+        m_sess["Session"]
+        m_log["ExecutionLog"]
+        m_snap["ExecutionSnapshot"]
+        m_journ["ExecutionJournal"]
+        m_metric["ExecutionMetric"]
+        m_op["ExternalOperation"]
+        m_evt["EventStoreRecord"]
+    end
+
+    create_biz -->|Insert| m_biz
+    get_wa_config --> WA_Config
+    WA_Config -->|Select| m_biz
+    
+    reg_wf --> Compiler
+    Compiler --> Validator
+    Compiler --> Optimizer
+    reg_wf -->|Insert| m_wf
+    reg_wf -->|Insert if valid| m_cg
+    
+    act_wf -->|Select| m_wf
+    act_wf --> Compiler
+    act_wf -->|Sub-transaction| Simulation
+    act_wf -->|Update ACTIVE| m_wf
+    act_wf -->|Upsert| m_cg
+    
+    cert_wf --> Compiler
+    cert_wf -->|Isolated Run| Simulation
+    cert_wf -->|Isolated Traversal| Traversal
+    
+    create_sess -->|Select| m_biz
+    create_sess -->|Select ACTIVE| m_wf
+    create_sess -->|Insert| m_sess
+    
+    disp_sess --> Traversal
+    Traversal -->|Select & Lock| m_sess
+    Traversal -->|Select| m_cg
+    Traversal -->|Insert| m_log
+    Traversal -->|Insert| m_snap
+    Traversal -->|Insert| m_journ
+    Traversal -->|Insert| m_metric
+    Traversal -->|Insert| m_evt
+    disp_sess -->|Insert PENDING| m_op
+    
+    rb_sess --> TimeTravel
+    TimeTravel -->|Select| m_snap
+    TimeTravel -->|Select| m_sess
+    TimeTravel -->|Delete downstream| m_log
+    TimeTravel -->|Delete downstream| m_snap
+    TimeTravel -->|Delete downstream| m_journ
+    TimeTravel -->|Update state| m_sess

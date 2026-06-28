@@ -1,0 +1,16 @@
+{
+  "module_name": "registration",
+  "version": "1.0",
+  "category": "Education",
+  "description": "Processes registration request",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "education.registration_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

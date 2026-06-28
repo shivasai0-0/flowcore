@@ -1,0 +1,14 @@
+{
+  "module_name": "returns",
+  "version": "1.0",
+  "category": "Ecommerce",
+  "description": "Processes return request",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

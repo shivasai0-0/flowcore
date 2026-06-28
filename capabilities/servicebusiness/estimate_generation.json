@@ -1,0 +1,14 @@
+{
+  "module_name": "estimate_generation",
+  "version": "1.0",
+  "category": "ServiceBusiness",
+  "description": "Generates job pricing estimate",
+  "inputs": [],
+  "outputs": {
+    "service.estimate_total": "float"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

@@ -1,0 +1,53 @@
+{
+  "name": "Mock Stripe Provider Segment",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/mock/stripe/checkout/sessions",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "amount",
+              "value": "={{ $json.amount }}"
+            },
+            {
+              "name": "currency",
+              "value": "={{ $json.currency || 'USD' }}"
+            },
+            {
+              "name": "success_url",
+              "value": "http://localhost:8000/api/v1/mock/stripe/success"
+            },
+            {
+              "name": "cancel_url",
+              "value": "http://localhost:8000/api/v1/mock/stripe/cancel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe_create_session",
+      "name": "Create Mock Checkout Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-webhook",
+        "options": {}
+      },
+      "id": "stripe_webhook_trigger",
+      "name": "Stripe Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 400]
+    }
+  ],
+  "connections": {},
+  "active": true,
+  "settings": {}
+}

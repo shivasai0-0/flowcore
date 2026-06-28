@@ -1,0 +1,12 @@
+{
+  "module_name": "assign_delivery_partner",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Assigns delivery rider",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

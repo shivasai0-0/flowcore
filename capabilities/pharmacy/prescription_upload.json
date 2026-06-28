@@ -1,0 +1,16 @@
+{
+  "module_name": "prescription_upload",
+  "version": "1.0",
+  "category": "Pharmacy",
+  "description": "Handles medicine prescription upload/parsing",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {
+    "pharmacy.prescription_id": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

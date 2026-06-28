@@ -1,0 +1,22 @@
+{
+  "module_name": "create_delivery",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Creates logistics delivery order",
+  "inputs": [],
+  "outputs": {
+    "logistics.delivery_id": "str",
+    "logistics.status": "str"
+  },
+  "required_config": [
+    "delivery_provider"
+  ],
+  "optional_config": [
+    "delivery_fee",
+    "max_distance"
+  ],
+  "events_emitted": [
+    "DELIVERY_CREATED"
+  ],
+  "events_consumed": []
+}

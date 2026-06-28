@@ -1,0 +1,164 @@
+{
+  "business_id": "biz_placeholder_123",
+  "version_number": 1,
+  "entry_node_id": "node_menu",
+  "nodes": {
+    "node_menu": {
+      "id": "node_menu",
+      "module_name": "show_menu",
+      "config": {
+        "text": "Welcome to our Restaurant!"
+      },
+      "fsm_transition_to": "MENU"
+    },
+    "node_cart": {
+      "id": "node_cart",
+      "module_name": "collect_cart",
+      "config": {},
+      "fsm_transition_to": "CART"
+    },
+    "node_total": {
+      "id": "node_total",
+      "module_name": "calculate_total",
+      "config": {},
+      "fsm_transition_to": "CART"
+    },
+    "node_checkout": {
+      "id": "node_checkout",
+      "module_name": "create_order",
+      "config": {},
+      "fsm_transition_to": "CHECKOUT"
+    },
+    "node_ask_address": {
+      "id": "node_ask_address",
+      "module_name": "send_message",
+      "config": {
+        "text": "Please reply with your delivery address."
+      },
+      "fsm_transition_to": null
+    },
+    "node_address": {
+      "id": "node_address",
+      "module_name": "collect_address",
+      "config": {},
+      "fsm_transition_to": "ADDRESS"
+    },
+    "node_payment": {
+      "id": "node_payment",
+      "module_name": "create_payment",
+      "config": {},
+      "fsm_transition_to": "PAYMENT"
+    },
+    "node_confirm": {
+      "id": "node_confirm",
+      "module_name": "confirm_payment",
+      "config": {},
+      "fsm_transition_to": "CONFIRMED"
+    },
+    "node_delivery": {
+      "id": "node_delivery",
+      "module_name": "create_delivery",
+      "config": {},
+      "fsm_transition_to": null
+    },
+    "node_notify": {
+      "id": "node_notify",
+      "module_name": "notify_customer",
+      "config": {},
+      "fsm_transition_to": null
+    }
+  },
+  "edges": [
+    {
+      "from_node": "node_menu",
+      "to_node": "node_cart",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_cart",
+      "to_node": "node_total",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_total",
+      "to_node": "node_checkout",
+      "condition": {
+        "type": "input_in",
+        "value": [
+          "Checkout",
+          "CHECKOUT"
+        ]
+      }
+    },
+    {
+      "from_node": "node_checkout",
+      "to_node": "node_ask_address",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_ask_address",
+      "to_node": "node_address",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_address",
+      "to_node": "node_payment",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_payment",
+      "to_node": "node_confirm",
+      "condition": {
+        "type": "input_equals",
+        "value": "CONFIRM_PAYMENT"
+      }
+    },
+    {
+      "from_node": "node_confirm",
+      "to_node": "node_delivery",
+      "condition": {
+        "type": "always"
+      }
+    },
+    {
+      "from_node": "node_delivery",
+      "to_node": "node_notify",
+      "condition": {
+        "type": "always"
+      }
+    }
+  ],
+  "fsm_transition_table": {
+    "START": {
+      "MENU": "show_menu"
+    },
+    "MENU": {
+      "CART": "collect_cart"
+    },
+    "CART": {
+      "CHECKOUT": "create_order",
+      "MENU": "show_menu",
+      "CANCELLED": "send_message"
+    },
+    "CHECKOUT": {
+      "ADDRESS": "collect_address"
+    },
+    "ADDRESS": {
+      "PAYMENT": "create_payment"
+    },
+    "PAYMENT": {
+      "CONFIRMED": "confirm_payment",
+      "CANCELLED": "send_message"
+    }
+  }
+}

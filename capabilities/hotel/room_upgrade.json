@@ -1,0 +1,14 @@
+{
+  "module_name": "room_upgrade",
+  "version": "1.0",
+  "category": "Hotel",
+  "description": "Handles room category upgrade request",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

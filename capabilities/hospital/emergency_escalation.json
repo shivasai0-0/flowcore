@@ -1,0 +1,14 @@
+{
+  "module_name": "emergency_escalation",
+  "version": "1.0",
+  "category": "Hospital",
+  "description": "Escalates patient emergency status",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

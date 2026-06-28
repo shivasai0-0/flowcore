@@ -1,0 +1,12 @@
+{
+  "module_name": "membership_renewal",
+  "version": "1.0",
+  "category": "Gym",
+  "description": "Renews membership status",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

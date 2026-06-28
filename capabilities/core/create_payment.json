@@ -1,0 +1,23 @@
+{
+  "module_name": "create_payment",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Creates payment transaction link",
+  "inputs": [],
+  "outputs": {
+    "payment.payment_url": "str",
+    "payment.transaction_id": "str",
+    "payment.status": "str"
+  },
+  "required_config": [
+    "payment_provider"
+  ],
+  "optional_config": [
+    "allow_cod",
+    "currency"
+  ],
+  "events_emitted": [
+    "PAYMENT_REQUIRED"
+  ],
+  "events_consumed": []
+}

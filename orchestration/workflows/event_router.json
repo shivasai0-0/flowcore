@@ -1,0 +1,60 @@
+{
+  "name": "Central Event Router Segment",
+  "nodes": [
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "type": "string"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.side_effect }}",
+                    "operator": "equals",
+                    "rightValue": "dispatch_delivery_courier"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delivery"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "type": "string"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.side_effect }}",
+                    "operator": "equals",
+                    "rightValue": "external_gateway_handshake"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "payment"
+            }
+          ]
+        },
+        "defaultTabIndex": 2
+      },
+      "id": "event_switch_node",
+      "name": "Event Switch Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [300, 200]
+    }
+  ],
+  "connections": {},
+  "active": true,
+  "settings": {}
+}

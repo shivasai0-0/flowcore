@@ -1,0 +1,16 @@
+{
+  "module_name": "reject_request",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Rejects approval request",
+  "inputs": [],
+  "outputs": {
+    "approval.status": "str"
+  },
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [
+    "APPROVAL_REJECTED"
+  ],
+  "events_consumed": []
+}

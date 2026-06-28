@@ -1,0 +1,66 @@
+graph TD
+    main["src/main.py"] --> db["src/database.py"]
+    main --> r_biz["src/routes/businesses.py"]
+    main --> r_wf["src/routes/workflows.py"]
+    main --> r_sess["src/routes/sessions.py"]
+    main --> r_mod["src/routes/modules.py"]
+    main --> r_snap["src/routes/snapshots.py"]
+    main --> r_met["src/routes/metrics.py"]
+    main --> r_test["src/routes/tests.py"]
+    main --> se_worker["src/engine/side_effects.py (run_retry_worker)"]
+
+    db --> config["src/config.py"]
+    db --> models["src/models.py"]
+
+    r_biz --> db
+    r_biz --> models
+    r_biz --> s_biz["src/schemas/business.py"]
+    r_biz --> wa_svc["src/services/whatsapp_config.py"]
+
+    r_wf --> db
+    r_wf --> models
+    r_wf --> s_graph["src/schemas/graph.py"]
+    r_wf --> s_wf["src/schemas/workflow.py"]
+    r_wf --> compiler["src/engine/compiler/compiler.py"]
+    r_wf --> simulation["src/engine/simulation.py"]
+
+    r_sess --> db
+    r_sess --> models
+    r_sess --> s_sess["src/schemas/session.py"]
+    r_sess --> traversal["src/engine/traversal.py"]
+    r_sess --> side_effects["src/engine/side_effects.py"]
+
+    r_snap --> db
+    r_snap --> models
+    r_snap --> time_travel["src/engine/time_travel.py"]
+
+    traversal --> models
+    traversal --> fsm["src/fsm/engine.py"]
+    traversal --> mod_registry["src/modules/registry.py"]
+    traversal --> mod_base["src/modules/base.py"]
+    traversal --> conditions["src/engine/conditions.py"]
+    traversal --> exec_graph["src/engine/compiler/executable_graph.py"]
+    traversal --> events["src/engine/events/__init__.py"]
+
+    compiler --> static_val["src/engine/compiler/static_validator.py"]
+    compiler --> optimizer["src/engine/compiler/graph_optimizer.py"]
+    compiler --> exec_graph
+
+    static_val --> mod_registry
+    static_val --> fsm
+
+    simulation --> traversal
+    simulation --> compiler
+    simulation --> mod_registry
+
+    mod_registry --> mod_base
+    mod_base --> s_carry["src/schemas/carry_unit.py"]
+    mod_base --> s_contract["src/schemas/contract.py"]
+
+    s_carry --> merge_eng["src/engine/carry/merge_engine.py"]
+    merge_eng --> mut_guard["src/engine/carry/mutation_guard.py"]
+    
+    events --> ev_models["src/engine/events/event_models.py"]
+    events --> ev_bus["src/engine/events/event_bus.py"]
+    ev_bus --> ev_store["src/engine/events/event_store.py"]
+    ev_bus --> ev_subs["src/engine/events/subscribers.py"]

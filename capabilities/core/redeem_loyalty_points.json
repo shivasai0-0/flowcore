@@ -1,0 +1,14 @@
+{
+  "module_name": "redeem_loyalty_points",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Redeems customer loyalty points",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "points_to_redeem"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

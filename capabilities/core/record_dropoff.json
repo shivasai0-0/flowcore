@@ -1,0 +1,14 @@
+{
+  "module_name": "record_dropoff",
+  "version": "1.0",
+  "category": "Core",
+  "description": "Records dropoff metrics",
+  "inputs": [],
+  "outputs": {},
+  "required_config": [
+    "dropoff_stage"
+  ],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}

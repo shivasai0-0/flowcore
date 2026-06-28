@@ -1,0 +1,301 @@
+{
+  "name": "FlowCore — Dynamic AI Workflow Generator",
+  "nodes": [
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-workflow",
+        "options": {},
+        "responseMode": "responseNode"
+      },
+      "id": "g_trigger",
+      "name": "Generation Request Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [80, 300],
+      "notes": "Triggered by the FlowCore frontend AI builder. Receives: business_id, business_name, business_category, user_prompt, custom_description, llama_endpoint (optional), model (optional)."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ─── Parse and validate the generation request ───────────────\nconst body = $json.body || $json;\n\nconst business_id = body.business_id;\nconst business_name = body.business_name || 'Business';\nconst business_category = body.business_category || 'general';\nconst user_prompt = body.user_prompt || body.prompt || '';\nconst custom_description = body.custom_description || '';\nconst llama_endpoint = body.llama_endpoint || 'http://localhost:11434';\nconst model = body.model || 'llama3';\nconst refinement_mode = body.refinement_mode || false;\nconst existing_workflow = body.existing_workflow || null;\n\nif (!user_prompt) {\n  throw new Error('VALIDATION: user_prompt is required for workflow generation.');\n}\n\nreturn [{\n  json: {\n    business_id,\n    business_name,\n    business_category,\n    user_prompt,\n    custom_description,\n    llama_endpoint,\n    model,\n    refinement_mode,\n    existing_workflow\n  }\n}];"
+      },
+      "id": "g_parse_request",
+      "name": "Parse Generation Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 300]
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8000/api/v1/workflows/ai-context",
+        "options": {}
+      },
+      "id": "g_fetch_context",
+      "name": "Fetch FlowCore Runtime Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [480, 300],
+      "notes": "Fetches the versioned FlowCore runtime context document (flowcore_runtime_context_v1.md) dynamically from the backend. This ensures Llama always has the latest module contracts, FSM rules, and workflow patterns."
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://localhost:8000/api/v1/businesses/{{ $node['Parse Generation Request'].json.business_id }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "g_fetch_business",
+      "name": "Fetch Business Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [480, 460],
+      "notes": "Fetches the business profile (name, catalog, settings, branding) to inject into the AI prompt for business-aware workflow generation."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ─── STEP 1: Intent Extraction Prompt ────────────────────────────────────\n// Light-weight pre-pass: extract structured intent from the user's natural language request.\n// This reduces hallucination and improves Llama's graph structure accuracy.\nconst req = $node['Parse Generation Request'].json;\n\nconst intent_prompt = `Analyze this business workflow request and extract configuration parameters as JSON.\nOutput ONLY a valid JSON object with exactly these keys. No explanation, no markdown.\n\n{\n  \"business_type\": \"string (restaurant|salon|clinic|gym|ecommerce|education|support|delivery|finance|custom)\",\n  \"needs_payment\": boolean,\n  \"needs_delivery\": boolean,\n  \"needs_appointment\": boolean,\n  \"needs_catalog\": boolean,\n  \"needs_support_escalation\": boolean,\n  \"needs_subscription\": boolean,\n  \"preferred_terminology\": {\n    \"order_noun\": \"string (Order|Booking|Appointment|Membership|Subscription)\",\n    \"catalog_noun\": \"string (Menu|Services|Products|Courses|Plans)\",\n    \"staff_noun\": \"string (Staff|Stylist|Doctor|Trainer|Agent)\"\n  }\n}\n\nBusiness Category: ${req.business_category}\nUser Request: \"${req.user_prompt}\"\nCustom Description: \"${req.custom_description || 'none'}\"\n\nJSON:`;\n\nreturn [{\n  json: {\n    ...req,\n    intent_prompt\n  }\n}];"
+      },
+      "id": "g_build_intent_prompt",
+      "name": "Build Intent Extraction Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Step 1 of 2-pass generation: builds a lightweight intent extraction prompt to classify: payment needed, delivery needed, appointment system, business-specific terminology. Prevents hallucination in the full generation step."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Parse Generation Request'].json.llama_endpoint }}/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $node['Parse Generation Request'].json.model }}\",\n  \"prompt\": {{ JSON.stringify($json.intent_prompt) }},\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.1, \"num_predict\": 300 }\n}",
+        "options": {
+          "timeout": 8000,
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "g_llama_intent",
+      "name": "Llama: Extract Intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [880, 300],
+      "notes": "Pass 1: Fast intent classification call to Llama/Ollama. 8 second timeout. Falls back to local heuristics if Llama is offline."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ─── Parse Llama intent response + local fallback heuristics ───────────\nconst req = $node['Parse Generation Request'].json;\nconst llamaResponse = $json;\nconst promptLower = req.user_prompt.toLowerCase();\nconst catLower = req.business_category.toLowerCase();\n\n// Local fallback intent — always computed in case Llama is offline\nconst fallback_intent = {\n  business_type: catLower.includes('salon') || catLower.includes('spa') ? 'salon'\n               : catLower.includes('clinic') || catLower.includes('hospital') ? 'clinic'\n               : catLower.includes('gym') || catLower.includes('fitness') ? 'gym'\n               : catLower.includes('restaurant') || catLower.includes('food') || catLower.includes('cafe') ? 'restaurant'\n               : catLower.includes('ecommerce') || catLower.includes('store') || catLower.includes('shop') ? 'ecommerce'\n               : catLower.includes('education') || catLower.includes('school') ? 'education'\n               : 'custom',\n  needs_payment: promptLower.includes('pay') || promptLower.includes('stripe') || promptLower.includes('checkout') || promptLower.includes('cash'),\n  needs_delivery: promptLower.includes('deliver') || promptLower.includes('ship') || promptLower.includes('courier') || promptLower.includes('address'),\n  needs_appointment: promptLower.includes('book') || promptLower.includes('appointment') || promptLower.includes('slot') || promptLower.includes('schedul'),\n  needs_catalog: true,\n  needs_support_escalation: promptLower.includes('escalat') || promptLower.includes('support') || promptLower.includes('agent') || promptLower.includes('human'),\n  needs_subscription: promptLower.includes('subscript') || promptLower.includes('member') || promptLower.includes('renew'),\n  preferred_terminology: {\n    order_noun: catLower.includes('salon') ? 'Booking' : catLower.includes('clinic') ? 'Appointment' : catLower.includes('gym') ? 'Membership' : 'Order',\n    catalog_noun: catLower.includes('salon') ? 'Services' : catLower.includes('clinic') ? 'Consultations' : catLower.includes('gym') ? 'Plans' : catLower.includes('restaurant') ? 'Menu' : 'Products',\n    staff_noun: catLower.includes('salon') ? 'Stylist' : catLower.includes('clinic') ? 'Doctor' : catLower.includes('gym') ? 'Trainer' : 'Staff'\n  }\n};\n\n// Try to parse Llama's JSON response\nlet intent = fallback_intent;\ntry {\n  const raw = llamaResponse?.response || '';\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}') + 1;\n  if (start !== -1 && end > start) {\n    const parsed = JSON.parse(raw.substring(start, end));\n    intent = { ...fallback_intent, ...parsed };\n  }\n} catch (e) {\n  // Llama offline or returned non-JSON — use fallback\n  console.log('Intent fallback: Llama unavailable or returned non-JSON');\n}\n\n// Get runtime context and business data\nconst runtime_context = $node['Fetch FlowCore Runtime Context'].json?.data || '';\nconst business_data = $node['Fetch Business Metadata'].json?.data || {};\nconst catalog_raw = business_data.catalog_json || '{}';\nconst catalog = (() => { try { return JSON.parse(catalog_raw); } catch { return {}; } })();\n\nreturn [{\n  json: {\n    ...req,\n    intent,\n    runtime_context,\n    business_name: business_data.name || req.business_name,\n    catalog,\n    using_fallback: intent === fallback_intent\n  }\n}];"
+      },
+      "id": "g_parse_intent",
+      "name": "Parse Intent + Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300],
+      "notes": "Parses Llama's intent JSON. Falls back gracefully to local heuristic classifiers if Llama is offline/slow. Always produces a valid intent object."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ─── STEP 2: Build Full Workflow Generation Prompt ───────────────────────\n// Combines: FlowCore runtime context + business metadata + extracted intent\n// This is the main prompt that produces the complete workflow graph JSON.\nconst ctx = $json;\nconst { intent, business_name, business_category, user_prompt, custom_description, runtime_context, catalog, refinement_mode, existing_workflow } = ctx;\n\nconst terminology = intent.preferred_terminology;\n\n// Build intent annotation\nconst intent_summary = `\nEXTRACTED WORKFLOW INTENT:\n- Business Type: ${intent.business_type}\n- ${terminology.order_noun} Management: Yes\n- Payment Integration: ${intent.needs_payment ? 'YES (include create_payment + confirm_payment nodes)' : 'NO'}\n- Delivery/Shipping: ${intent.needs_delivery ? 'YES (include collect_address + create_delivery nodes)' : 'NO'}\n- ${terminology.order_noun} Booking System: ${intent.needs_appointment ? 'YES (slot-based collection flow)' : 'NO'}\n- Support Escalation: ${intent.needs_support_escalation ? 'YES (include notify_customer escalation node)' : 'NO'}\n- ${terminology.catalog_noun}: ${JSON.stringify(Object.keys(catalog).length > 0 ? catalog : { note: 'Use generic examples based on business type' })}\n\nBUSINESS-SPECIFIC TERMINOLOGY:\n- Refer to orders as: \"${terminology.order_noun}\"\n- Refer to catalog as: \"${terminology.catalog_noun}\"\n- Refer to staff as: \"${terminology.staff_noun}\"\n`;\n\n// Build refinement instruction if in refinement mode\nconst refinement_section = refinement_mode && existing_workflow\n  ? `\\nREFINEMENT MODE: You are modifying an existing workflow. Here is the current workflow:\\n${JSON.stringify(existing_workflow, null, 2)}\\n\\nApply the following changes: \"${user_prompt}\"\\nKeep all existing valid nodes and edges. Only add/modify what the change request requires.\\n`\n  : '';\n\n// Build dynamic operational actions section\nconst actions_section = `\nOPERATIONAL ACTIONS TO INCLUDE IN WORKFLOW:\nFor each major FSM state, the workflow should support these operational actions via user input:\n- CART state: User can send 'VIEW_CART', 'CLEAR_CART'\n- CHECKOUT state: User can send 'VIEW_CART', 'CANCEL_ORDER'\n- PAYMENT state: User can send 'RETRY_PAYMENT', 'CANCEL_ORDER'\n- CONFIRMED state: User can send 'TRACK_DELIVERY', 'REORDER', 'CONTACT_SUPPORT'\n\nFor ${intent.business_type} specifically:\n${intent.business_type === 'salon' ? '- Include RESCHEDULE_BOOKING and CANCEL_BOOKING actions in CONFIRMED state' : ''}\n${intent.business_type === 'clinic' ? '- Include VIEW_PRESCRIPTION and CONTACT_RECEPTION actions in CONFIRMED state' : ''}\n${intent.business_type === 'gym' ? '- Include VIEW_MEMBERSHIP, RENEW_PLAN, BOOK_TRAINER actions' : ''}\n${intent.business_type === 'ecommerce' ? '- Include TRACK_SHIPMENT, RETURN_PRODUCT actions in CONFIRMED state' : ''}\n`;\n\nconst full_prompt = `${runtime_context}\\n\\n---\\n\\n${intent_summary}\\n\\n${refinement_section}\\n${actions_section}\\n\\n==================================================\\nGENERATION TASK\\n==================================================\\n\\nBusiness Name: ${business_name}\\nBusiness Category: ${business_category}\\nUser Request: \"${user_prompt}\"\\n${custom_description ? `Additional Context: \"${custom_description}\"` : ''}\\n\\nGenerate a complete, valid FlowCore workflow graph JSON for this specific business.\\n\\nCRITICAL REQUIREMENTS:\\n1. Output ONLY the raw JSON object — no markdown, no explanation, no backticks.\\n2. The workflow must be tailored to ${business_name} (a ${business_category} business).\\n3. All node module_names must be from the VALID MODULE LIST in the context above.\\n4. The fsm_transition_table must map every transition actually used by nodes.\\n5. No cycles in edges unless explicitly conditional with input_equals conditions.\\n6. Every terminal path must end in CONFIRMED or CANCELLED state.\\n7. business_id must be: \"${ctx.business_id || 'temp_biz_id'}\"\\n8. Use business-specific welcome messages, terminology, and product/service names.\\n9. For payment: use create_payment + confirm_payment nodes in sequence.\\n10. For delivery: use collect_address BEFORE create_delivery.\\n\\nJSON Output:`;\n\nreturn [{\n  json: {\n    ...ctx,\n    full_prompt\n  }\n}];"
+      },
+      "id": "g_build_full_prompt",
+      "name": "Build Full Generation Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 300],
+      "notes": "Constructs the comprehensive Llama generation prompt combining: runtime context (v1), business metadata, extracted intent, terminology, operational actions, and business-specific requirements. Supports refinement mode for iterative workflow updates."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.llama_endpoint }}/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": {{ JSON.stringify($json.full_prompt) }},\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.1, \"num_predict\": 4000 }\n}",
+        "options": {
+          "timeout": 60000,
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "g_llama_generate",
+      "name": "Llama: Generate Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1480, 300],
+      "notes": "Pass 2: Full workflow graph generation. 60 second timeout (graph generation is heavier). Falls back to mock synthesis if Llama unavailable."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ─── Parse Llama's generated workflow JSON ──────────────────────────────\nconst ctx = $node['Build Full Generation Prompt'].json;\nconst llamaResponse = $json;\n\nlet workflow_graph = null;\nlet using_mock = false;\n\ntry {\n  const raw = llamaResponse?.response || '';\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}') + 1;\n  if (start !== -1 && end > start) {\n    workflow_graph = JSON.parse(raw.substring(start, end));\n  }\n} catch (e) {\n  console.log('Llama output parse failed:', e.message);\n}\n\n// ─── Mock Synthesis Fallback ──────────────────────────────────────────\n// Used when Llama is offline or returns invalid JSON.\n// Generates a semantically correct FlowCore graph based on extracted intent.\nif (!workflow_graph) {\n  using_mock = true;\n  const intent = ctx.intent;\n  const biz_name = ctx.business_name;\n  const biz_id = ctx.business_id || 'temp_biz_id';\n  const t = intent.preferred_terminology;\n\n  const nodes = {\n    node_welcome: {\n      id: 'node_welcome',\n      module_name: 'show_menu',\n      config: {\n        menu_header: `Welcome to ${biz_name}!\\n\\nHere are our ${t.catalog_noun.toLowerCase()}:\\n1. Option A\\n2. Option B\\n3. Option C\\n\\nReply with your selection.`\n      },\n      fsm_transition_to: 'MENU'\n    },\n    node_collect: {\n      id: 'node_collect',\n      module_name: 'collect_cart',\n      config: { expects_user_input: true },\n      fsm_transition_to: 'CART'\n    },\n    node_total: {\n      id: 'node_total',\n      module_name: 'calculate_total',\n      config: {},\n      fsm_transition_to: 'CHECKOUT'\n    }\n  };\n\n  const edges = [\n    { from_node: 'node_welcome', to_node: 'node_collect', condition: { type: 'any_input', value: '' } },\n    { from_node: 'node_collect', to_node: 'node_total', condition: { type: 'always', value: '' } }\n  ];\n\n  const fsm_table = {\n    START: { MENU: 'show_menu' },\n    MENU: { CART: 'collect_cart' },\n    CART: { CHECKOUT: 'calculate_total' }\n  };\n\n  // Add payment if needed\n  if (intent.needs_payment) {\n    nodes['node_payment'] = { id: 'node_payment', module_name: 'create_payment', config: { gateway: 'stripe', currency: 'USD' }, fsm_transition_to: 'PAYMENT' };\n    nodes['node_confirm_pay'] = { id: 'node_confirm_pay', module_name: 'confirm_payment', config: {}, fsm_transition_to: 'CONFIRMED' };\n    edges.push({ from_node: 'node_total', to_node: 'node_payment', condition: { type: 'always', value: '' } });\n    edges.push({ from_node: 'node_payment', to_node: 'node_confirm_pay', condition: { type: 'always', value: '' } });\n    fsm_table['CHECKOUT'] = { PAYMENT: 'create_payment' };\n    fsm_table['PAYMENT'] = { CONFIRMED: 'confirm_payment' };\n  }\n\n  // Add delivery if needed\n  if (intent.needs_delivery) {\n    nodes['node_address'] = { id: 'node_address', module_name: 'collect_address', config: { expects_user_input: true }, fsm_transition_to: 'CONFIRMED' };\n    nodes['node_delivery'] = { id: 'node_delivery', module_name: 'create_delivery', config: {}, fsm_transition_to: 'CONFIRMED' };\n    const prev_node = intent.needs_payment ? 'node_confirm_pay' : 'node_total';\n    edges.push({ from_node: prev_node, to_node: 'node_address', condition: { type: 'always', value: '' } });\n    edges.push({ from_node: 'node_address', to_node: 'node_delivery', condition: { type: 'always', value: '' } });\n  }\n\n  // Always end with notify\n  const last_nodes = intent.needs_delivery ? ['node_delivery'] : intent.needs_payment ? ['node_confirm_pay'] : ['node_total'];\n  nodes['node_notify'] = {\n    id: 'node_notify',\n    module_name: 'notify_customer',\n    config: { message: `Your ${t.order_noun.toLowerCase()} with ${biz_name} has been confirmed! Thank you.` },\n    fsm_transition_to: 'CONFIRMED'\n  };\n  last_nodes.forEach(ln => edges.push({ from_node: ln, to_node: 'node_notify', condition: { type: 'always', value: '' } }));\n  if (!fsm_table['CONFIRMED']) fsm_table['CONFIRMED'] = {};\n\n  workflow_graph = {\n    business_id: biz_id,\n    version_number: 1,\n    entry_node_id: 'node_welcome',\n    nodes,\n    edges,\n    fsm_transition_table: fsm_table\n  };\n}\n\nreturn [{\n  json: {\n    business_id: ctx.business_id,\n    workflow_graph,\n    intent: ctx.intent,\n    using_mock,\n    business_name: ctx.business_name,\n    business_category: ctx.business_category\n  }\n}];"
+      },
+      "id": "g_parse_workflow",
+      "name": "Parse Generated Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 300],
+      "notes": "Extracts valid JSON from Llama's response. Falls back to intent-aware mock synthesis if Llama is offline or returns invalid JSON. Mock synthesis respects payment/delivery/appointment intent flags."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/workflows/validate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.workflow_graph) }}",
+        "options": {}
+      },
+      "id": "g_validate",
+      "name": "FlowCore: Validate Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1880, 300],
+      "notes": "MANDATORY: All generated workflows pass through FlowCore's validation pipeline before storage. FlowCore checks: DAG cycle-freedom, FSM legality, module contracts, edge conditions, dead-end detection."
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "validation_passed",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ]
+        }
+      },
+      "id": "g_validation_gate",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2080, 300]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/workflows/register",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"business_id\": \"{{ $node['Parse Generated Workflow'].json.business_id }}\",\n  \"graph\": {{ JSON.stringify($node['Parse Generated Workflow'].json.workflow_graph) }}\n}",
+        "options": {}
+      },
+      "id": "g_register",
+      "name": "FlowCore: Register Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2280, 200],
+      "notes": "Registers the validated workflow as a new DRAFT version in FlowCore. Returns version_id for compilation."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:8000/api/v1/workflows/compile/{{ $json.data.id }}",
+        "options": {}
+      },
+      "id": "g_compile",
+      "name": "FlowCore: Compile Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2480, 200],
+      "notes": "Compiles the registered workflow version. FlowCore performs: graph compilation, node resolution, edge optimization, FSM table generation, and readiness certification."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"workflow_graph\": {{ JSON.stringify($node['Parse Generated Workflow'].json.workflow_graph) }},\n  \"version_id\": \"{{ $node['FlowCore: Register Workflow'].json.data.id }}\",\n  \"compile_status\": \"{{ $json.data?.certified ? 'CERTIFIED' : 'COMPILED' }}\",\n  \"using_mock\": {{ $node['Parse Generated Workflow'].json.using_mock }},\n  \"intent\": {{ JSON.stringify($node['Parse Generated Workflow'].json.intent) }},\n  \"message\": \"Workflow generated, validated, and compiled successfully.\"\n}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "g_respond_success",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2680, 200],
+      "notes": "Returns the complete workflow graph, version_id, compile status, and intent metadata to the frontend AI builder."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Workflow validation failed\",\n  \"validation_report\": {{ JSON.stringify($json.data) }},\n  \"workflow_graph\": {{ JSON.stringify($node['Parse Generated Workflow'].json.workflow_graph) }},\n  \"message\": \"The generated workflow failed FlowCore validation. See validation_report for details.\"\n}",
+        "options": { "responseCode": 422 }
+      },
+      "id": "g_respond_validation_fail",
+      "name": "Respond: Validation Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2280, 400],
+      "notes": "Returns the validation report so the frontend can display specific errors and prompt the user to refine their request."
+    }
+
+  ],
+  "connections": {
+    "Generation Request Trigger": {
+      "main": [[{ "node": "Parse Generation Request", "type": "main", "index": 0 }]]
+    },
+    "Parse Generation Request": {
+      "main": [
+        [{ "node": "Fetch FlowCore Runtime Context", "type": "main", "index": 0 },
+         { "node": "Fetch Business Metadata", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch FlowCore Runtime Context": {
+      "main": [[{ "node": "Build Intent Extraction Prompt", "type": "main", "index": 0 }]]
+    },
+    "Fetch Business Metadata": {
+      "main": [[{ "node": "Build Intent Extraction Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Intent Extraction Prompt": {
+      "main": [[{ "node": "Llama: Extract Intent", "type": "main", "index": 0 }]]
+    },
+    "Llama: Extract Intent": {
+      "main": [[{ "node": "Parse Intent + Fallback", "type": "main", "index": 0 }]]
+    },
+    "Parse Intent + Fallback": {
+      "main": [[{ "node": "Build Full Generation Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Full Generation Prompt": {
+      "main": [[{ "node": "Llama: Generate Workflow", "type": "main", "index": 0 }]]
+    },
+    "Llama: Generate Workflow": {
+      "main": [[{ "node": "Parse Generated Workflow", "type": "main", "index": 0 }]]
+    },
+    "Parse Generated Workflow": {
+      "main": [[{ "node": "FlowCore: Validate Workflow", "type": "main", "index": 0 }]]
+    },
+    "FlowCore: Validate Workflow": {
+      "main": [[{ "node": "Validation Passed?", "type": "main", "index": 0 }]]
+    },
+    "Validation Passed?": {
+      "main": [
+        [{ "node": "FlowCore: Register Workflow", "type": "main", "index": 0 }],
+        [{ "node": "Respond: Validation Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "FlowCore: Register Workflow": {
+      "main": [[{ "node": "FlowCore: Compile Workflow", "type": "main", "index": 0 }]]
+    },
+    "FlowCore: Compile Workflow": {
+      "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "ai-gen-v1-2026",
+  "id": "dynamic_workflow_generator"
+}

@@ -1,0 +1,14 @@
+{
+  "module_name": "property_visit_booking",
+  "version": "1.0",
+  "category": "RealEstate",
+  "description": "Books site property visit",
+  "inputs": [
+    "str"
+  ],
+  "outputs": {},
+  "required_config": [],
+  "optional_config": [],
+  "events_emitted": [],
+  "events_consumed": []
+}
